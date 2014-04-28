@@ -338,6 +338,7 @@ PRIVATE void take_tickets(struct schedproc * rmp, int old_tickets)
 PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
 {
 	int i = 0, r, rsum = 0, winning_num;
+    char flag_won = 0;
 	struct schedproc *rmp;
 
 	/* Generate random, traverse queue 17/16?, pick winner */
@@ -346,28 +347,24 @@ PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
 
 	for (; i < NR_PROCS; i++){
 		rmp = schedproc[i];
-		rsum += rmp->num_tickets
+		rsum += rmp->num_tickets;
 		
 		/* must be user proc, and if winner is already found, continue setting losers */
-		if (rsum >= ticket_pool) {
+		if (rsum >= winning_num && !flag_won) {
 			/* rmp wins, place priority to queue 16 */
+            rmp->priority = 16; /*check this d.t.*/
+            schedule_process(rmp);
+            flag_won = 1;
 		} else {
 			/* rmp loses, place priority to queue 17 */
+            rmp->priority = 17; /*check this d.t.*/
+            schedule_process(rmp);
 		}
 
 		/* schedule_process(rmp); */
 	}
 }
 /* CHANGE END */
-
-
-
-
-
-
-
-
-
 
 
 
