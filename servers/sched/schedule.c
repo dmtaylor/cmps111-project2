@@ -1,4 +1,7 @@
-/* This file contains the scheduling policy for SCHED
+/*	CHANGED
+ *	4/25/14		Added lottery sched (Forrest Kerslager)
+ * 
+ * This file contains the scheduling policy for SCHED
  *
  * The entry points are:
  *   do_noquantum:        Called on behalf of process' that run out of quantum
@@ -10,12 +13,17 @@
 #include "sched.h"
 #include "schedproc.h"
 #include <assert.h>
+#include <time.h>
+#include <stdlib.h>
 #include <minix/com.h>
 #include <machine/archtypes.h>
 #include "kernel/proc.h" /* for queue constants */
 
 PRIVATE timer_t sched_timer;
 PRIVATE unsigned balance_timeout;
+/* CHANGE START */
+PRIVATE unsigned ticket_pool;
+/* CHANGE END */
 
 #define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
 
@@ -23,6 +31,12 @@ FORWARD _PROTOTYPE( int schedule_process, (struct schedproc * rmp)	);
 FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 
 #define DEFAULT_USER_TIME_SLICE 200
+/* CHANGE START */
+#define DEFAULT_USER_TICKETS 20
+#define DEFAULT_SYSTEM_TICKETS 40
+#define MAX_TICKETS 100
+#define MAX_BLOCKS 5
+/* CHANGE END */
 
 /*===========================================================================*
  *				do_noquantum				     *
@@ -40,13 +54,28 @@ PUBLIC int do_noquantum(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
-	if (rmp->priority < MIN_USER_Q) {
-		rmp->priority += 1; /* lower priority */
+	/* CHANGE START */
+	if(m_ptr->SCHEDULING_ACNT_IPC_SYNC < total_block_count) {
+		take_tickets(rmp, 1);
+	} else {
+		give_tickets(rmp, 1);
 	}
+	/* Replace code below with code for adjusting ticket values */
+	/*
+	if (rmp->priority < MIN_USER_Q) {
+		rmp->priority += 1; 
+	}
+	*/
+	/* CHANGE END */
 
 	if ((rv = schedule_process(rmp)) != OK) {
 		return rv;
 	}
+
+	/* CHANGE START */
+	start_lottery();
+	/* CHANGE END */
+
 	return OK;
 }
 
@@ -70,6 +99,10 @@ PUBLIC int do_stop_scheduling(message *m_ptr)
 
 	rmp = &schedproc[proc_nr_n];
 	rmp->flags = 0; /*&= ~IN_USE;*/
+	/* CHANGE START */
+	/* Remove proc's tickets from ticket pool */
+	ticket_pool -= rmp->num_tickets;
+	/* CHANGE END */
 
 	return OK;
 }
@@ -104,7 +137,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 	if (rmp->max_priority >= NR_SCHED_QUEUES) {
 		return EINVAL;
 	}
-	
+
 	switch (m_ptr->m_type) {
 
 	case SCHEDULING_START:
@@ -113,6 +146,9 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		 * from the parent */
 		rmp->priority   = rmp->max_priority;
 		rmp->time_slice = (unsigned) m_ptr->SCHEDULING_QUANTUM;
+		/* CHANGE START */
+		give_tickets(rmp, DEFAULT_SYSTEM_TICKETS);
+		/* CHANGE END */
 		break;
 		
 	case SCHEDULING_INHERIT:
@@ -123,8 +159,11 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 				&parent_nr_n)) != OK)
 			return rv;
 
-		rmp->priority = schedproc[parent_nr_n].priority;
+		rmp->priority = schedproc[parent_nr_n].priority;	/* Force into queue 17? */
 		rmp->time_slice = schedproc[parent_nr_n].time_slice;
+		/* CHANGE START */
+		give_tickets(rmp, DEFAULT_USER_TICKETS);
+		/* CHANGE END */
 		break;
 		
 	default: 
@@ -246,14 +285,92 @@ PRIVATE void balance_queues(struct timer *tp)
 	int proc_nr;
 	int rv;
 
+	/* CHANGE START */
+	/* Replace code below with code to balance */
+	/*
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
 			if (rmp->priority > rmp->max_priority) {
-				rmp->priority -= 1; /* increase priority */
+				rmp->priority -= 1; 
 				schedule_process(rmp);
 			}
 		}
 	}
+	/* CHANGE END */
 
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
 }
+
+/* CHANGE START */
+/*===========================================================================*
+ *				give_tickets				     *
+ *===========================================================================*/
+PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
+{
+	/* Assert max ticket amount */
+	if ((rmp->num_tickets + new_tickets) <= MAX_TICKETS) {
+		/* Add tickets for the process to the ticket pool */
+		ticket_pool += new_tickets;
+		/* Give the process the default amount of tickets */
+		rmp->num_tickets += new_tickets;
+	} else {
+		/* Failed to give process more tickets */
+		return -1;
+	}
+
+	return 0;
+}
+
+/*===========================================================================*
+ *				take_tickets				     *
+ *===========================================================================*/
+PRIVATE void take_tickets(struct schedproc * rmp, int old_tickets)
+{
+	/* Remove tickets from the ticket pool */
+	ticket_pool -= old_tickets;
+	/* Remove tickets from the process */
+	rmp->num_tickets -= old_tickets;
+}
+
+/*===========================================================================*
+ *				start_lottery				     *
+ *===========================================================================*/
+PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
+{
+	int i = 0, r, rsum = 0, winning_num;
+	struct schedproc *rmp;
+
+	/* Generate random, traverse queue 17/16?, pick winner */
+	srandom(time(NULL));
+	winning_num = random() % (ticket_pool - 1);
+
+	for (; i < NR_PROCS; i++){
+		rmp = schedproc[i];
+		rsum += rmp->num_tickets
+		
+		/* must be user proc, and if winner is already found, continue setting losers */
+		if (rsum >= ticket_pool) {
+			/* rmp wins, place priority to queue 16 */
+		} else {
+			/* rmp loses, place priority to queue 17 */
+		}
+
+		/* schedule_process(rmp); */
+	}
+}
+/* CHANGE END */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

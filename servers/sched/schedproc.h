@@ -1,4 +1,7 @@
-/* This table has one slot per process.  It contains scheduling information
+/*	CHANGED
+ *	4/25/14		Added num_tickets var to schedproc struct (Forrest Kerslager)
+ *
+ * This table has one slot per process.  It contains scheduling information
  * for each process.
  */
 #include <limits.h>
@@ -20,6 +23,9 @@ EXTERN struct schedproc {
 	unsigned flags;		/* flag bits */
 
 	/* User space scheduling */
+	/* CHANGE START */
+	unsigned num_tickets;	/* number of tickets held by this process */
+	/* CHANGE END */
 	unsigned max_priority;	/* this process' highest allowed priority */
 	unsigned priority;		/* the process' current priority */
 	unsigned time_slice;		/* this process's time slice */
