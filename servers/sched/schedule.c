@@ -64,7 +64,8 @@ PUBLIC int do_noquantum(message *m_ptr)
 		if (give_tickets(rmp, 1)) {
 			printf("SCHED: WARNING: cannot give more than %d tickets to a process.\n",
 			MAX_TICKETS);
-		/* Exit with error? - FK */
+			/* Exit with error? - FK */
+		}
 	}
 	/* Replace code below with code for adjusting ticket values */
 	/*
@@ -347,7 +348,7 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
-	/* Generate random, traverse queue 17/16?, pick winner */
+	/* Generate random winning ticket */
 	srandom(time(NULL));
 	winning_num = random() % (ticket_pool - 1);
 
@@ -360,11 +361,11 @@ PRIVATE int start_lottery()
 		if (rsum >= winning_num && !flag_won) {
 			/* This process wins, set priority 16 */
             rmp->priority = QUEUE_WIN;
-			/* winner is already found, but continue setting losers */
+			/* Winner is already found, but continue setting losers */
             flag_won = 1;
 		} else {
 			/* This process loses, set priority to 17 */
-			/* but what if the proc was already a winner? should it still be in win queue */
+			/* What if proc was previously a winner? should it still be in win queue? -FK */
             rmp->priority = QUEUE_LOSE;
 		}
 
