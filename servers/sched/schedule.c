@@ -61,7 +61,10 @@ PUBLIC int do_noquantum(message *m_ptr)
 	if(m_ptr->SCHEDULING_ACNT_IPC_SYNC < total_block_count) {
 		take_tickets(rmp, 1);
 	} else {
-		give_tickets(rmp, 1);
+		if (give_tickets(rmp, 1)) {
+			printf("SCHED: WARNING: cannot give more than %d tickets to a process.\n",
+			MAX_TICKETS);
+		/* Exit with error? - FK */
 	}
 	/* Replace code below with code for adjusting ticket values */
 	/*
@@ -318,7 +321,7 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		rmp->num_tickets += new_tickets;
 	} else {
 		/* Failed to give process more tickets */
-		return -1;
+		return 1;
 	}
 
 	return 0;
@@ -338,7 +341,7 @@ PRIVATE void take_tickets(struct schedproc * rmp, int old_tickets)
 /*===========================================================================*
  *				start_lottery				     *
  *===========================================================================*/
-PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
+PRIVATE int start_lottery()
 {
 	int i, rsum = 0, winning_num;
     char flag_won = 0;
@@ -355,16 +358,17 @@ PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
 		
 		/* Winner is found when the running sum exceeds the random number */
 		if (rsum >= winning_num && !flag_won) {
-			/* proc wins, set priority to queue 16 */
-            rmp->priority = QUEUE_WIN; /*check this d.t.*/
+			/* This process wins, set priority 16 */
+            rmp->priority = QUEUE_WIN;
 			/* winner is already found, but continue setting losers */
             flag_won = 1;
 		} else {
-			/* proc loses, set priority to queue 17 */
+			/* This process loses, set priority to 17 */
 			/* but what if the proc was already a winner? should it still be in win queue */
-            rmp->priority = QUEUE_LOSE; /*check this d.t.*/
+            rmp->priority = QUEUE_LOSE;
 		}
 
+		/* Every loop iteration schedules a process as a winner or loser */
 		schedule_process(rmp);
 	}
 }
