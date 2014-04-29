@@ -1,4 +1,5 @@
 /*	CHANGED
+ *  4/28/14		Updated start_lottery (David Taylor, Forrest Kerslager)
  *	4/25/14		Added lottery sched (Forrest Kerslager)
  * 
  * This file contains the scheduling policy for SCHED
@@ -36,6 +37,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define DEFAULT_SYSTEM_TICKETS 40
 #define MAX_TICKETS 100
 #define MAX_BLOCKS 5
+#define QUEUE_WIN 16
+#define QUEUE_LOSE 17
 /* CHANGE END */
 
 /*===========================================================================*
@@ -337,7 +340,7 @@ PRIVATE void take_tickets(struct schedproc * rmp, int old_tickets)
  *===========================================================================*/
 PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
 {
-	int i = 0, r, rsum = 0, winning_num;
+	int i, rsum = 0, winning_num;
     char flag_won = 0;
 	struct schedproc *rmp;
 
@@ -345,23 +348,24 @@ PRIVATE int start_lottery(struct schedproc * rmp, int new_tickets)
 	srandom(time(NULL));
 	winning_num = random() % (ticket_pool - 1);
 
-	for (; i < NR_PROCS; i++){
+	/* Loop through process table, scheduling winners and losers */
+	for (i = 0; i < NR_PROCS; i++){
 		rmp = schedproc[i];
 		rsum += rmp->num_tickets;
 		
-		/* must be user proc, and if winner is already found, continue setting losers */
+		/* Winner is found when the running sum exceeds the random number */
 		if (rsum >= winning_num && !flag_won) {
-			/* rmp wins, place priority to queue 16 */
-            rmp->priority = 16; /*check this d.t.*/
-            schedule_process(rmp);
+			/* proc wins, set priority to queue 16 */
+            rmp->priority = QUEUE_WIN; /*check this d.t.*/
+			/* winner is already found, but continue setting losers */
             flag_won = 1;
 		} else {
-			/* rmp loses, place priority to queue 17 */
-            rmp->priority = 17; /*check this d.t.*/
-            schedule_process(rmp);
+			/* proc loses, set priority to queue 17 */
+			/* but what if the proc was already a winner? should it still be in win queue */
+            rmp->priority = QUEUE_LOSE; /*check this d.t.*/
 		}
 
-		/* schedule_process(rmp); */
+		schedule_process(rmp);
 	}
 }
 /* CHANGE END */
