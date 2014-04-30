@@ -61,11 +61,8 @@ PUBLIC int do_noquantum(message *m_ptr)
 	if(m_ptr->SCHEDULING_ACNT_IPC_SYNC < total_block_count) {
 		take_tickets(rmp, 1);
 	} else {
-		if (give_tickets(rmp, 1)) {
-			printf("SCHED: WARNING: cannot give more than %d tickets to a process.\n",
-			MAX_TICKETS);
-			/* Exit with error? - FK */
-		}
+		give_tickets(rmp, 1);
+
 	}
 	/* Replace code below with code for adjusting ticket values */
 	/*
@@ -321,7 +318,7 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		/* Give the process the default amount of tickets */
 		rmp->num_tickets += new_tickets;
 	} else {
-		/* Failed to give process more tickets */
+		/* Return error, no process can have more than MAX_TICKETS */
 		return 1;
 	}
 
@@ -331,12 +328,20 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 /*===========================================================================*
  *				take_tickets				     *
  *===========================================================================*/
-PRIVATE void take_tickets(struct schedproc * rmp, int old_tickets)
+PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 {
-	/* Remove tickets from the ticket pool */
-	ticket_pool -= old_tickets;
-	/* Remove tickets from the process */
-	rmp->num_tickets -= old_tickets;
+	/* Assert min ticket amount */
+	if (rmp->num_tickets - old_tickets >=  1)
+		/* Remove tickets from the ticket pool */
+		ticket_pool -= old_tickets;
+		/* Remove tickets from the process */
+		rmp->num_tickets -= old_tickets;
+	else {
+		/* Return error, no process can have <1 tickets */
+		return 1;
+	}
+
+	return 0;
 }
 
 /*===========================================================================*
