@@ -37,8 +37,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define DEFAULT_SYSTEM_TICKETS 40
 #define MAX_TICKETS 100
 #define MAX_BLOCKS 5
-#define QUEUE_WIN 16
-#define QUEUE_LOSE 17
+#define QUEUE_WIN 14
+#define QUEUE_LOSE 15
 /* CHANGE END */
 
 /*===========================================================================*
