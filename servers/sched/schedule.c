@@ -338,7 +338,7 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 		ticket_pool -= old_tickets;
 		/* Remove tickets from the process */
 		rmp->num_tickets -= old_tickets;
-	else {
+	}else {
 	    /* Sets number of tickets in process to 1 */
 		rmp->num_tickets = 1;
 		/* Return error, no process can have <1 tickets */
