@@ -11,11 +11,10 @@
  *   do_nice		  Request to change the nice level on a proc
  *   init_scheduling      Called from main.c to set up/prepare scheduling
  */
+
 #include "sched.h"
 #include "schedproc.h"
 #include <assert.h>
-#include <time.h>
-#include <stdlib.h>
 #include <minix/com.h>
 #include <machine/archtypes.h>
 #include "kernel/proc.h" /* for queue constants */
@@ -58,13 +57,7 @@ PUBLIC int do_noquantum(message *m_ptr)
 
 	rmp = &schedproc[proc_nr_n];
 	/* CHANGE START */
-	if(m_ptr->SCHEDULING_ACNT_IPC_SYNC < total_block_count) {
-		take_tickets(rmp, 1);
-	} else {
-		give_tickets(rmp, 1);
-
-	}
-	/* Replace code below with code for adjusting ticket values */
+	/* Replace code below with code for adjusting ticket values dynamically */
 	/*
 	if (rmp->priority < MIN_USER_Q) {
 		rmp->priority += 1; 
@@ -357,6 +350,9 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
+	/* DEBUG */
+	printf("Running lottery...\n");
+
 	/* Generate random winning ticket */
 	srandom(time(NULL));
 	winning_num = random() % (ticket_pool - 1);
@@ -364,28 +360,23 @@ PRIVATE int start_lottery()
 	/* Loop through process table, scheduling winners and losers */
 	for (i = 0; i < NR_PROCS; i++){
 		rmp = &schedproc[i];
-		rsum += rmp->num_tickets;
 		
-		/* Winner is found when the running sum exceeds the random number */
-		if (rsum >= winning_num && !flag_won) {
-			/* This process wins, set priority 16 */
-            rmp->priority = QUEUE_WIN;
-			/* Winner is already found, but continue setting losers */
-            flag_won = 1;
-		} else {
-			/* This process loses, set priority to 17 */
-			/* What if proc was previously a winner? should it still be in win queue? -FK */
-            rmp->priority = QUEUE_LOSE;
+		if (rmp->priority == QUEUE_WIN || rmp->priority == QUEUE_LOSE) {
+			rsum += rmp->num_tickets;
+			/* Winner is found when the running sum exceeds the random number */
+			if (rsum >= winning_num && !flag_won) {
+				/* This process wins, set priority 16 */
+				rmp->priority = QUEUE_WIN;
+				/* Winner is already found, but continue setting losers */
+				flag_won = 1;
+			} else {
+				/* This process loses, set priority to 17 */
+				/* What if proc was previously a winner? should it still be in win queue? -FK */
+				rmp->priority = QUEUE_LOSE;
+			}
 		}
-
 		/* Every loop iteration schedules a process as a winner or loser */
 		schedule_process(rmp);
 	}
 }
 /* CHANGE END */
-
-
-
-
-
-
