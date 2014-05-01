@@ -333,7 +333,7 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 {
 	/* Assert min ticket amount */
-	if (rmp->num_tickets - old_tickets >=  1)
+	if (rmp->num_tickets - old_tickets >=  1) {
 		/* Remove tickets from the ticket pool */
 		ticket_pool -= old_tickets;
 		/* Remove tickets from the process */
