@@ -363,7 +363,7 @@ PRIVATE int start_lottery()
 
 	/* Loop through process table, scheduling winners and losers */
 	for (i = 0; i < NR_PROCS; i++){
-		rmp = schedproc[i];
+		rmp = &schedproc[i];
 		rsum += rmp->num_tickets;
 		
 		/* Winner is found when the running sum exceeds the random number */
