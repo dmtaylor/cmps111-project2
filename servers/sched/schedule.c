@@ -359,9 +359,9 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 }
 
 /*===========================================================================*
- *				is_user_proc				     *
+ *				in_user_queue				     *
  *===========================================================================*/
-PRIVATE int in_user_queues(struct schedproc * rmp)
+PRIVATE int in_user_queue(struct schedproc * rmp)
 {
 	if (rmp->priority == QUEUE_WIN || rmp->priority == QUEUE_LOSE) {
 		return 1;
