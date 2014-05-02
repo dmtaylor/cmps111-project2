@@ -19,6 +19,7 @@
 #include <minix/com.h>
 #include <machine/archtypes.h>
 #include "kernel/proc.h" /* for queue constants */
+#include <minix/endpoint.h>
 
 PRIVATE timer_t sched_timer;
 PRIVATE unsigned balance_timeout;
@@ -34,13 +35,13 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define DEFAULT_USER_TIME_SLICE 200
 /* CHANGE START */
 #define DEFAULT_USER_TICKETS 20
-#define DEFAULT_SYSTEM_TICKETS 40
+#define DEFAULT_SYSTEM_TICKETS 20
 #define MAX_TICKETS 100
 #define MAX_BLOCKS 5
 #define QUEUE_WIN 14
 #define QUEUE_LOSE 15
 
-/* #define DEBUG */	/* Uncomment to enable debug print statements */
+#define DEBUG 	/* Uncomment to enable debug print statements */
 /* CHANGE END */
 
 /*===========================================================================*
@@ -60,12 +61,7 @@ PUBLIC int do_noquantum(message *m_ptr)
 
 	rmp = &schedproc[proc_nr_n];
 	/* CHANGE START */
-	/* Replace code below with code for adjusting ticket values dynamically */
-	/*
-	if (rmp->priority < MIN_USER_Q) {
-		rmp->priority += 1; 
-	}
-	*/
+	/* Insert code for adjusting ticket values dynamically */
 	/* CHANGE END */
 
 	if ((rv = schedule_process(rmp)) != OK) {
@@ -99,6 +95,7 @@ PUBLIC int do_stop_scheduling(message *m_ptr)
 
 	rmp = &schedproc[proc_nr_n];
 	rmp->flags = 0; /*&= ~IN_USE;*/
+
 	/* CHANGE START */
 	/* Remove proc's tickets from ticket pool */
 	ticket_pool -= rmp->num_tickets;
@@ -146,9 +143,11 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		 * from the parent */
 		rmp->priority   = rmp->max_priority;
 		rmp->time_slice = (unsigned) m_ptr->SCHEDULING_QUANTUM;
+
 		/* CHANGE START */
 		give_tickets(rmp, DEFAULT_SYSTEM_TICKETS);
 		/* CHANGE END */
+
 		break;
 
 	case SCHEDULING_INHERIT:
@@ -159,11 +158,13 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 				&parent_nr_n)) != OK)
 			return rv;
 
-		rmp->priority = schedproc[parent_nr_n].priority;	/* Force into queue 17? */
+		rmp->priority = schedproc[parent_nr_n].priority;
 		rmp->time_slice = schedproc[parent_nr_n].time_slice;
+
 		/* CHANGE START */
 		give_tickets(rmp, DEFAULT_USER_TICKETS);
 		/* CHANGE END */
+
 		break;
 
 	default: 
@@ -205,7 +206,6 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 PUBLIC int do_nice(message *m_ptr)
 {
 	struct schedproc *rmp;
-	int rv;
 	int proc_nr_n;
     int nice = m_ptr->SCHEDULING_MAXPRIO; /* changed */
 	unsigned new_q, old_q, old_max_q;
@@ -222,43 +222,16 @@ PUBLIC int do_nice(message *m_ptr)
 
 	rmp = &schedproc[proc_nr_n];
 
-    /* Begin Changes */
-
-    
-    if (nice>0){
+    /* CHANGE START */
+    if (nice > 0){
         give_tickets(rmp, nice);
-    }
-    else if(nice<0){
+    }else if(nice < 0) {
         nice = -nice;
         take_tickets(rmp, nice);
     }
+    /* CHANGE END */
 
-    rv = 0;
-
-	/*new_q = (unsigned) m_ptr->SCHEDULING_MAXPRIO;
-	if (new_q >= NR_SCHED_QUEUES) {
-		return EINVAL;
-	}*/
-
-    
-    
-	/* Store old values, in case we need to roll back the changes */
-	/*old_q     = rmp->priority;
-	old_max_q = rmp->max_priority;*/
-
-	/* Update the proc entry and reschedule the process */
-	/*rmp->max_priority = rmp->priority = new_q;*/
-
-/*	if ((rv = schedule_process(rmp)) != OK) {
-		 Something went wrong when rescheduling the process, roll
-		  back the changes to proc struct
-      rmp->priority     = old_q;
-		rmp->max_priority = old_max_q;
-	}*/
-
-    /* end changes */
-
-	return rv;
+	return 0;
 }
 
 /*===========================================================================*
@@ -287,6 +260,10 @@ PUBLIC void init_scheduling(void)
 	balance_timeout = BALANCE_TIMEOUT * sys_hz();
 	init_timer(&sched_timer);
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
+
+	/* CHANGE START */
+	ticket_pool = 0;
+	/* CHANGE START */
 }
 
 /*===========================================================================*
@@ -326,6 +303,8 @@ PRIVATE void balance_queues(struct timer *tp)
  *===========================================================================*/
 PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 {
+	int difference;
+
 	/* Assert max ticket amount */
 	if ((rmp->num_tickets + new_tickets) <= MAX_TICKETS) {
 		/* Add tickets for the process to the ticket pool */
@@ -338,7 +317,7 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		#endif
 		
 		/* Calculates how many tickets it took to reach 100 and adds to pool */
-		int difference = MAX_TICKETS - rmp->num_tickets;
+		difference = MAX_TICKETS - rmp->num_tickets;
 		ticket_pool += difference;
 	    /* Sets to maximum number of tickets to process */
 	    rmp->num_tickets = MAX_TICKETS;
@@ -354,6 +333,8 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
  *===========================================================================*/
 PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 {
+	int difference;
+
 	/* Assert min ticket amount */
 	if (rmp->num_tickets - old_tickets >=  1) {
 		/* Remove tickets from the ticket pool */
@@ -366,7 +347,7 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 		#endif
 		
 		/* Calculates how many tickets to reach minimum, subtract from pool */
-		int difference = rmp->num_tickets - 1;
+		difference = rmp->num_tickets - 1;
         ticket_pool -= difference;		
 	    /* Sets number of tickets in process to 1 */
 		rmp->num_tickets = 1;
@@ -398,10 +379,6 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
-	#ifdef DEBUG
-	printf("Running lottery...\n");
-	#endif
-
 	/* Generate random winning ticket */
 	srandom(time(NULL));
 	winning_num = random() % (ticket_pool - 1);
@@ -414,6 +391,10 @@ PRIVATE int start_lottery()
 			rsum += rmp->num_tickets;
 			/* Winner is found when the running sum exceeds the random number */
 			if (rsum >= winning_num && !flag_won) {
+				#ifdef DEBUG
+				printf("LOTTERY: index %d endpoint %d endpoint2 %d won, moved from queue %d\n", i, rmp->endpoint, _ENDPOINT_P(rmp->endpoint) , rmp->priority);
+				#endif
+
 				/* This process wins, set priority QUEUE_WIN */
 				rmp->priority = QUEUE_WIN;
 				/* Winner is already found, but continue setting losers */
