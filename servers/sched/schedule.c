@@ -204,6 +204,7 @@ PUBLIC int do_nice(message *m_ptr)
 	struct schedproc *rmp;
 	int rv;
 	int proc_nr_n;
+    int nice = m_ptr->SCHEDULING_MAXPRIO; /* changed */
 	unsigned new_q, old_q, old_max_q;
 
 	/* check who can send you requests */
@@ -217,24 +218,42 @@ PUBLIC int do_nice(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
-	new_q = (unsigned) m_ptr->SCHEDULING_MAXPRIO;
+
+    /* Begin Changes */
+
+    
+    if (nice>0){
+        give_tickets(rmp, nice);
+    }
+    else if(nice<0){
+        nice = -nice;
+        take_tickets(rmp, nice);
+    }
+
+    rv = 0;
+
+	/*new_q = (unsigned) m_ptr->SCHEDULING_MAXPRIO;
 	if (new_q >= NR_SCHED_QUEUES) {
 		return EINVAL;
-	}
+	}*/
 
+    
+    
 	/* Store old values, in case we need to roll back the changes */
-	old_q     = rmp->priority;
-	old_max_q = rmp->max_priority;
+	/*old_q     = rmp->priority;
+	old_max_q = rmp->max_priority;*/
 
 	/* Update the proc entry and reschedule the process */
-	rmp->max_priority = rmp->priority = new_q;
+	/*rmp->max_priority = rmp->priority = new_q;*/
 
-	if ((rv = schedule_process(rmp)) != OK) {
+/*	if ((rv = schedule_process(rmp)) != OK) {
 		/* Something went wrong when rescheduling the process, roll
 		 * back the changes to proc struct */
-		rmp->priority     = old_q;
+      /*rmp->priority     = old_q;
 		rmp->max_priority = old_max_q;
-	}
+	}*/
+
+    /* end changes */
 
 	return rv;
 }
