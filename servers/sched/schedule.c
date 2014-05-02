@@ -332,6 +332,10 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		/* Give the process the default amount of tickets */
 		rmp->num_tickets += new_tickets;
 	} else {
+		#ifdef DEBUG
+			printf("SCHED: give_tickets(): ticket max reached\n");
+		#endif
+
 	    /* Sets to maximum number of tickets to process */
 	    rmp->num_tickets = MAX_TICKETS;
 		/* Return error, no process can have more than MAX_TICKETS */
@@ -353,6 +357,10 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 		/* Remove tickets from the process */
 		rmp->num_tickets -= old_tickets;
 	}else {
+		#ifdef DEBUG
+			printf("SCHED: take_tickets(): ticket minimum reached\n");
+		#endif
+
 	    /* Sets number of tickets in process to 1 */
 		rmp->num_tickets = 1;
 		/* Return error, no process can have <1 tickets */
