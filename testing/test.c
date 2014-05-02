@@ -10,7 +10,7 @@ main (int argc, char *argv[]) {
 			printf("Loop finished\n");
 			j++;
 		}
-		if (j == 1000000000) {
+		if (j == 1000000) {
 			printf("Program finished\n");			
 			break;
 		}
