@@ -387,7 +387,7 @@ PRIVATE int is_user_proc(struct schedproc * rmp)
  *===========================================================================*/
 PRIVATE int start_lottery()
 {
-	int i, rsum = 0, winning_num, rv;
+	int i, rsum = 0, winning_num;
     char flag_won = 0;
 	struct schedproc *rmp;
 
@@ -417,10 +417,7 @@ PRIVATE int start_lottery()
 			}
 
 			/* Every loop iteration schedules a process as a either the winner or a loser */
-			if ((rv = schedule_process(rmp)) != OK) {
-				printf("Sched: Error while scheduling process, kernel replied %d\n",
-					rv);
-			}
+			schedule_process(rmp);
 		}
 	}
 }
