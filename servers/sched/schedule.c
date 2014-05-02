@@ -38,6 +38,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define MAX_BLOCKS 5
 #define QUEUE_WIN 14
 #define QUEUE_LOSE 15
+
+/* #define DEBUG */	/* Uncomment to enable debug print statements */
 /* CHANGE END */
 
 /*===========================================================================*
@@ -381,8 +383,9 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
-	/* DEBUG */
+	#ifdef DEBUG
 	printf("Running lottery...\n");
+	#endif
 
 	/* Generate random winning ticket */
 	srandom(time(NULL));
@@ -392,20 +395,20 @@ PRIVATE int start_lottery()
 	for (i = 0; i < NR_PROCS; i++){
 		rmp = &schedproc[i];
 		
-		if (rmp->priority == QUEUE_WIN || rmp->priority == QUEUE_LOSE) {
+		if (is_user_proc(rmp)) {
 			rsum += rmp->num_tickets;
 			/* Winner is found when the running sum exceeds the random number */
 			if (rsum >= winning_num && !flag_won) {
-				/* This process wins, set priority 16 */
+				/* This process wins, set priority QUEUE_WIN */
 				rmp->priority = QUEUE_WIN;
 				/* Winner is already found, but continue setting losers */
 				flag_won = 1;
 			} else {
-				/* This process loses, set priority to 17 */
-				/* What if proc was previously a winner? should it still be in win queue? -FK */
+				/* This process loses, set priority to QUEUE_LOSE */
 				rmp->priority = QUEUE_LOSE;
 			}
-			/* Every loop iteration schedules a process as a winner or loser */
+
+			/* Every loop iteration schedules a process as a either the winner or a loser */
 			schedule_process(rmp);
 		}
 	}
