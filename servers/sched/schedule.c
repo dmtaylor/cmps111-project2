@@ -1,4 +1,5 @@
 /*	CHANGED
+ *  5/2/14      Updated give_tickets() and take_tickets() (Connie Yu)
  *  4/28/14		Updated start_lottery (David Taylor, Forrest Kerslager)
  *	4/25/14		Added lottery sched (Forrest Kerslager)
  * 
@@ -113,7 +114,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 {
 	register struct schedproc *rmp;
 	int rv, proc_nr_n, parent_nr_n, nice;
-	
+
 	/* we can handle two kinds of messages here */
 	assert(m_ptr->m_type == SCHEDULING_START || 
 		m_ptr->m_type == SCHEDULING_INHERIT);
@@ -149,7 +150,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		give_tickets(rmp, DEFAULT_SYSTEM_TICKETS);
 		/* CHANGE END */
 		break;
-		
+
 	case SCHEDULING_INHERIT:
 		/* Inherit current priority and time slice from parent. Since there
 		 * is currently only one scheduler scheduling the whole system, this
@@ -164,7 +165,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		give_tickets(rmp, DEFAULT_USER_TICKETS);
 		/* CHANGE END */
 		break;
-		
+
 	default: 
 		/* not reachable */
 		assert(0);
@@ -335,7 +336,10 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		#ifdef DEBUG
 			printf("SCHED: give_tickets(): ticket max reached\n");
 		#endif
-
+		
+		/* Calculates how many tickets it took to reach 100 and adds to pool */
+		int difference = MAX_TICKETS - rmp->num_tickets;
+		ticket_pool += difference;
 	    /* Sets to maximum number of tickets to process */
 	    rmp->num_tickets = MAX_TICKETS;
 		/* Return error, no process can have more than MAX_TICKETS */
@@ -360,7 +364,10 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 		#ifdef DEBUG
 			printf("SCHED: take_tickets(): ticket minimum reached\n");
 		#endif
-
+		
+		/* Calculates how many tickets to reach minimum, subtract from pool */
+		int difference = rmp->num_tickets - 1;
+        ticket_pool -= difference;		
 	    /* Sets number of tickets in process to 1 */
 		rmp->num_tickets = 1;
 		/* Return error, no process can have <1 tickets */
@@ -402,7 +409,7 @@ PRIVATE int start_lottery()
 	/* Loop through process table, scheduling winners and losers */
 	for (i = 0; i < NR_PROCS; i++){
 		rmp = &schedproc[i];
-		
+
 		if (is_user_proc(rmp)) {
 			rsum += rmp->num_tickets;
 			/* Winner is found when the running sum exceeds the random number */
