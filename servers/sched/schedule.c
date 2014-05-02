@@ -374,9 +374,9 @@ PRIVATE int start_lottery()
 				/* What if proc was previously a winner? should it still be in win queue? -FK */
 				rmp->priority = QUEUE_LOSE;
 			}
+			/* Every loop iteration schedules a process as a winner or loser */
+			schedule_process(rmp);
 		}
-		/* Every loop iteration schedules a process as a winner or loser */
-		schedule_process(rmp);
 	}
 }
 /* CHANGE END */
