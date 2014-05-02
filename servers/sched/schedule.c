@@ -247,9 +247,9 @@ PUBLIC int do_nice(message *m_ptr)
 	/*rmp->max_priority = rmp->priority = new_q;*/
 
 /*	if ((rv = schedule_process(rmp)) != OK) {
-		/* Something went wrong when rescheduling the process, roll
-		 * back the changes to proc struct */
-      /*rmp->priority     = old_q;
+		 Something went wrong when rescheduling the process, roll
+		  back the changes to proc struct
+      rmp->priority     = old_q;
 		rmp->max_priority = old_max_q;
 	}*/
 
