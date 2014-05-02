@@ -19,12 +19,12 @@
 #include <minix/com.h>
 #include <machine/archtypes.h>
 #include "kernel/proc.h" /* for queue constants */
-#include <minix/endpoint.h>
 
 PRIVATE timer_t sched_timer;
 PRIVATE unsigned balance_timeout;
 /* CHANGE START */
 PRIVATE unsigned ticket_pool;
+PRIVATE unsigned seeded = 0;
 /* CHANGE END */
 
 #define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
@@ -35,11 +35,10 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define DEFAULT_USER_TIME_SLICE 200
 /* CHANGE START */
 #define DEFAULT_USER_TICKETS 20
-#define DEFAULT_SYSTEM_TICKETS 20
 #define MAX_TICKETS 100
 #define MAX_BLOCKS 5
-#define QUEUE_WIN 14
-#define QUEUE_LOSE 15
+#define QUEUE_WIN 13
+#define QUEUE_LOSE 14
 
 #define DEBUG 	/* Uncomment to enable debug print statements */
 /* CHANGE END */
@@ -110,7 +109,7 @@ PUBLIC int do_stop_scheduling(message *m_ptr)
 PUBLIC int do_start_scheduling(message *m_ptr)
 {
 	register struct schedproc *rmp;
-	int rv, proc_nr_n, parent_nr_n, nice;
+	int rv, proc_nr_n, parent_nr_n;
 
 	/* we can handle two kinds of messages here */
 	assert(m_ptr->m_type == SCHEDULING_START || 
@@ -131,6 +130,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 	rmp->endpoint     = m_ptr->SCHEDULING_ENDPOINT;
 	rmp->parent       = m_ptr->SCHEDULING_PARENT;
 	rmp->max_priority = (unsigned) m_ptr->SCHEDULING_MAXPRIO;
+
 	if (rmp->max_priority >= NR_SCHED_QUEUES) {
 		return EINVAL;
 	}
@@ -145,7 +145,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		rmp->time_slice = (unsigned) m_ptr->SCHEDULING_QUANTUM;
 
 		/* CHANGE START */
-		give_tickets(rmp, DEFAULT_SYSTEM_TICKETS);
+		rmp->is_system = 1;
 		/* CHANGE END */
 
 		break;
@@ -162,6 +162,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 		rmp->time_slice = schedproc[parent_nr_n].time_slice;
 
 		/* CHANGE START */
+		rmp->is_system = 0;
 		give_tickets(rmp, DEFAULT_USER_TICKETS);
 		/* CHANGE END */
 
@@ -183,7 +184,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 
 	/* Schedule the process, giving it some quantum */
 	if ((rv = schedule_process(rmp)) != OK) {
-		printf("Sched: Error while scheduling process, kernel replied %d\n",
+		printf("do_start_scheduling: Error while scheduling process, kernel replied %d\n",
 			rv);
 		return rv;
 	}
@@ -223,12 +224,14 @@ PUBLIC int do_nice(message *m_ptr)
 	rmp = &schedproc[proc_nr_n];
 
     /* CHANGE START */
-    if (nice > 0){
-        give_tickets(rmp, nice);
-    }else if(nice < 0) {
-        nice = -nice;
-        take_tickets(rmp, nice);
-    }
+	if ((rmp->flags & IN_USE) && (rmp->is_system == 0)) {
+		if (nice > 0){
+			give_tickets(rmp, nice);
+		}else if(nice < 0) {
+			nice = -nice;
+			take_tickets(rmp, nice);
+		}
+	}
     /* CHANGE END */
 
 	return 0;
@@ -243,7 +246,7 @@ PRIVATE int schedule_process(struct schedproc * rmp)
 
 	if ((rv = sys_schedule(rmp->endpoint, rmp->priority,
 			rmp->time_slice)) != OK) {
-		printf("SCHED: An error occurred when trying to schedule %d: %d\n",
+		printf("schedule_process: An error occurred when trying to schedule %d: %d\n",
 		rmp->endpoint, rv);
 	}
 
@@ -379,20 +382,23 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
+	if (seeded == 0) {
+		srandom(time(NULL));
+		seeded = 1;
+	}
 	/* Generate random winning ticket */
-	srandom(time(NULL));
 	winning_num = random() % (ticket_pool - 1);
 
 	/* Loop through process table, scheduling winners and losers */
 	for (i = 0; i < NR_PROCS; i++){
 		rmp = &schedproc[i];
 
-		if (is_user_proc(rmp)) {
+		if ((rmp->flags & IN_USE) && (rmp->is_system == 0)) {
 			rsum += rmp->num_tickets;
 			/* Winner is found when the running sum exceeds the random number */
-			if (rsum >= winning_num && !flag_won) {
+			if (rsum >= winning_num && flag_won == 0) {
 				#ifdef DEBUG
-				printf("LOTTERY: index %d endpoint %d endpoint2 %d won, moved from queue %d\n", i, rmp->endpoint, _ENDPOINT_P(rmp->endpoint) , rmp->priority);
+				printf("LOTTERY: Total: %d Rand: %d Index %d won, Queues: %d -> %d \n", ticket_pool, winning_num, rmp->endpoint, rmp->priority, 0);
 				#endif
 
 				/* This process wins, set priority QUEUE_WIN */
