@@ -361,6 +361,18 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 }
 
 /*===========================================================================*
+ *				is_user_proc				     *
+ *===========================================================================*/
+PRIVATE int is_user_proc(struct schedproc * rmp)
+{
+	if (rmp->priority == QUEUE_WIN || rmp->priority == QUEUE_LOSE) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*===========================================================================*
  *				start_lottery				     *
  *===========================================================================*/
 PRIVATE int start_lottery()
