@@ -97,9 +97,9 @@ PUBLIC int sched_nice(struct mproc *rmp, int nice)
 	if (rmp->mp_scheduler == KERNEL || rmp->mp_scheduler == NONE)
 		return (EINVAL);
 
-	if ((rv = nice_to_priority(nice, &maxprio)) != OK) {
+	/*if ((rv = nice_to_priority(nice, &maxprio)) != OK) {
 		return rv;
-	}
+	}*/
 
 /* begin changes */
 	m.SCHEDULING_ENDPOINT	= rmp->mp_endpoint;
