@@ -41,6 +41,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define QUEUE_LOSE 14
 
 #define DEBUG 	/* Uncomment to enable debug print statements */
+/* #define DYNAMIC1 */	/* Uncomment to prevent starvation in start_lottery() */
+#define DYNAMIC2	/* Uncomment to allocate tickets for io vs cpu bounding */
 /* CHANGE END */
 
 /*===========================================================================*
@@ -49,8 +51,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 
 PUBLIC int do_noquantum(message *m_ptr)
 {
-	register struct schedproc *rmp;
-	int rv, proc_nr_n;
+	register struct schedproc *rmp, *rmpi;
+	int rv, proc_nr_n, i;
 
 	if (sched_isokendpt(m_ptr->m_source, &proc_nr_n) != OK) {
 		printf("SCHED: WARNING: got an invalid endpoint in OOQ msg %u.\n",
@@ -61,6 +63,24 @@ PUBLIC int do_noquantum(message *m_ptr)
 	rmp = &schedproc[proc_nr_n];
 	/* CHANGE START */
 	/* Insert code for adjusting ticket values dynamically */
+	#ifdef DYNAMIC2
+	if (rmp->priority == QUEUE_LOSE) {
+		for (i = 0;i < NR_PROCS; i++){
+			rmpi = &schedproc[i];
+			if ((rmpi->flags & IN_USE) && (rmpi->is_system == 0)) {
+				if (rmpi->priority == QUEUE_WIN) {
+					rmpi->num_blocks++;
+					/* could limit give ticket based on num_blocks */
+					give_tickets(rmpi, 1);
+					break;
+				}
+			}
+		}
+	} else {
+		take_tickets(rmp, 1);
+	}
+	#endif
+
 	/* CHANGE END */
 
 	if ((rv = schedule_process(rmp)) != OK) {
@@ -146,6 +166,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 
 		/* CHANGE START */
 		rmp->is_system = 1;
+		rmp->num_blocks = 0;
 		/* CHANGE END */
 
 		break;
@@ -163,6 +184,7 @@ PUBLIC int do_start_scheduling(message *m_ptr)
 
 		/* CHANGE START */
 		rmp->is_system = 0;
+		rmp->num_blocks = 0;
 		give_tickets(rmp, DEFAULT_USER_TICKETS);
 		/* CHANGE END */
 
@@ -398,7 +420,11 @@ PRIVATE int start_lottery()
 			/* Winner is found when the running sum exceeds the random number */
 			if (rsum >= winning_num && flag_won == 0) {
 				#ifdef DEBUG
-				printf("LOTTERY: Total: %d Rand: %d Index %d won, Queues: %d -> %d \n", ticket_pool, winning_num, rmp->endpoint, rmp->priority, 0);
+				printf("LOTTERY: Total: %d Rand: %d Index %d won, Queues: %d -> %d Tickets: %d\n", ticket_pool, winning_num, rmp->endpoint, rmp->priority, QUEUE_WIN, rmp->num_tickets);
+				#endif
+				
+				#ifdef DYNAMIC1
+				take_tickets(rmp, 1);
 				#endif
 
 				/* This process wins, set priority QUEUE_WIN */
@@ -406,6 +432,10 @@ PRIVATE int start_lottery()
 				/* Winner is already found, but continue setting losers */
 				flag_won = 1;
 			} else {
+				#ifdef DYNAMIC1
+				give_tickets(rmp, 1);
+				#endif
+
 				/* This process loses, set priority to QUEUE_LOSE */
 				rmp->priority = QUEUE_LOSE;
 			}
