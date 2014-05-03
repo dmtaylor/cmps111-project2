@@ -45,13 +45,13 @@ Scheduler:  To build the scheduler, copy the following source files to
 
             servers/pm/schedule.c -> /usr/src/servers/pm/schedule.c
 
-            Alternatively, run copysched.sh to copy these files.
-
             Then navigate to /usr/src/tools and run
 
                         "make install"
 
             to update the custom MINIX install.
+
+            Alternatively, run copysched.sh to do these commands.
 
 
 Scripts:    All scripts in the testing require bash 4 to run, so be
