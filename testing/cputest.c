@@ -17,7 +17,7 @@ main (int argc, char *argv[]) {
 			i = 0;
 			j++;
 		}
-		if (j == 30) {
+		if (j == 10) {
 			printf("PID:%d Program finished\n", pid);			
 			break;
 		}
