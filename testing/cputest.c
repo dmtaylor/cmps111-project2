@@ -1,3 +1,5 @@
+/* CREATED */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,7 +17,7 @@ main (int argc, char *argv[]) {
 			i = 0;
 			j++;
 		}
-		if (j == 10) {
+		if (j == 30) {
 			printf("PID:%d Program finished\n", pid);			
 			break;
 		}

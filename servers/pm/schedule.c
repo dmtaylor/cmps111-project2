@@ -1,3 +1,5 @@
+/* CREATED */
+
 #include "pm.h"
 #include <assert.h>
 #include <minix/callnr.h>
@@ -97,16 +99,13 @@ PUBLIC int sched_nice(struct mproc *rmp, int nice)
 	if (rmp->mp_scheduler == KERNEL || rmp->mp_scheduler == NONE)
 		return (EINVAL);
 
-	/*if ((rv = nice_to_priority(nice, &maxprio)) != OK) {
-		return rv;
-	}*/
-
-/* begin changes */
+	/* START CHANGES */
 	m.SCHEDULING_ENDPOINT	= rmp->mp_endpoint;
-	m.SCHEDULING_MAXPRIO	= /*(int) maxprio*/ nice;
+	m.SCHEDULING_MAXPRIO	= nice;
 	if ((rv = _taskcall(rmp->mp_scheduler, SCHEDULING_SET_NICE, &m))) {
 		return rv;
 	}
+	/* END CHANGES */
 
 	return (OK);
 }

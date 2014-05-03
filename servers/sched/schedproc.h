@@ -1,5 +1,4 @@
 /*	CHANGED
- *	4/25/14		Added num_tickets var to schedproc struct (Forrest Kerslager)
  *
  * This table has one slot per process.  It contains scheduling information
  * for each process.
