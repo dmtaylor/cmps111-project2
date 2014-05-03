@@ -6,10 +6,89 @@ By: Forrest Kerslager
     Connie Yu
 
 #######################################################################
+                             File Manifest
+#######################################################################
+
+servers/
+    pm/
+        scheduler.c
+    sched/
+        scheduler.c
+        schedproc.h
+
+testing/
+    buildscripts.sh
+    cpu1.sh
+    cpu2.sh
+    cpu3.sh
+    cup4.sh
+    cputest.c
+    io1.sh
+    iotest.c
+
+design.pdf
+README
+
+
+#######################################################################
                               Build Notes
 #######################################################################
 
 Scheduler:  To build the scheduler, copy the following source files to
             the listed locations in MINIX 3.1.8:
+
+            servers/sched/schedule.c
+                    -> /usr/src/servers/sched/schedule.c
+
+            servers/sched/schedproc.h
+                    -> /usr/src/servers/sched/schedproc.h
+
+            servers/pm/schedule.c -> /usr/src/servers/pm/schedule.c
+
+            Alternatively, run copysched.sh to copy these files.
+
+            Then navigate to /usr/src/tools and run
+
+                        "make install"
+
+            to update the custom MINIX install.
+
+
+Scripts:    All scripts in the testing require bash 4 to run, so be
+            sure to have that installed on the test machine. The
+            buildscripts.sh requres adding execute permissions to run, which
+            can be done in MINIX with the command:
+
+                    chmod +x buildscripts.sh
+
+            Following are descriptions of each script:
+
+                buildscripts.sh:    Generates the testing programs
+                                    and a noise-filled file for
+                                    testing. Run this 1st.
+
+                cpu1-4.sh:          Run cpu intensive tasks and print
+                                    times. See comments in scripts for
+                                    details on individhual details.
+
+                cputest.c:          Source file for a cpu intensive
+                                    program. This is built by the 1st
+                                    script. 
+
+                io1.sh:             Runs an I/O intensive program
+                                    alongside a cpu intensive one for
+                                    testing.
+
+                iotest.c:           The suggested I/O intensive program
+                                    source code. Built by 1st script.
+
+
+
+            
+
+
+
+
+
 
 
