@@ -1,7 +1,4 @@
 /*	CHANGED
- *  5/2/14      Updated give_tickets() and take_tickets() (Connie Yu)
- *  4/28/14		Updated start_lottery (David Taylor, Forrest Kerslager)
- *	4/25/14		Added lottery sched (Forrest Kerslager)
  * 
  * This file contains the scheduling policy for SCHED
  *
@@ -24,7 +21,7 @@ PRIVATE timer_t sched_timer;
 PRIVATE unsigned balance_timeout;
 /* CHANGE START */
 PRIVATE unsigned ticket_pool;
-PRIVATE unsigned seeded = 0;
+PRIVATE unsigned flag_seed;
 /* CHANGE END */
 
 #define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
@@ -33,16 +30,15 @@ FORWARD _PROTOTYPE( int schedule_process, (struct schedproc * rmp)	);
 FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 
 #define DEFAULT_USER_TIME_SLICE 200
+
 /* CHANGE START */
 #define DEFAULT_USER_TICKETS 20
 #define MAX_TICKETS 100
-#define MAX_BLOCKS 5
 #define QUEUE_WIN 13
 #define QUEUE_LOSE 14
 
 #define DEBUG 	/* Uncomment to enable debug print statements */
-/* #define DYNAMIC1 */	/* Uncomment to prevent starvation in start_lottery() */
-#define DYNAMIC2	/* Uncomment to allocate tickets for io vs cpu bounding */
+#define DYNAMIC	/* Uncomment to allocate tickets for io vs cpu bounding */
 /* CHANGE END */
 
 /*===========================================================================*
@@ -63,14 +59,13 @@ PUBLIC int do_noquantum(message *m_ptr)
 	rmp = &schedproc[proc_nr_n];
 	/* CHANGE START */
 	/* Insert code for adjusting ticket values dynamically */
-	#ifdef DYNAMIC2
+	#ifdef DYNAMIC
 	if (rmp->priority == QUEUE_LOSE) {
 		for (i = 0;i < NR_PROCS; i++){
 			rmpi = &schedproc[i];
 			if ((rmpi->flags & IN_USE) && (rmpi->is_system == 0)) {
 				if (rmpi->priority == QUEUE_WIN) {
 					rmpi->num_blocks++;
-					/* could limit give ticket based on num_blocks */
 					give_tickets(rmpi, 1);
 					break;
 				}
@@ -80,7 +75,6 @@ PUBLIC int do_noquantum(message *m_ptr)
 		take_tickets(rmp, 1);
 	}
 	#endif
-
 	/* CHANGE END */
 
 	if ((rv = schedule_process(rmp)) != OK) {
@@ -231,7 +225,6 @@ PUBLIC int do_nice(message *m_ptr)
 	struct schedproc *rmp;
 	int proc_nr_n;
     int nice = m_ptr->SCHEDULING_MAXPRIO; /* changed */
-	unsigned new_q, old_q, old_max_q;
 
 	/* check who can send you requests */
 	if (!accept_message(m_ptr))
@@ -288,6 +281,7 @@ PUBLIC void init_scheduling(void)
 
 	/* CHANGE START */
 	ticket_pool = 0;
+	flag_seed = 0;
 	/* CHANGE START */
 }
 
@@ -305,19 +299,6 @@ PRIVATE void balance_queues(struct timer *tp)
 	struct schedproc *rmp;
 	int proc_nr;
 	int rv;
-
-	/* CHANGE START */
-	/* Replace code below with code to balance */
-	/*
-	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
-		if (rmp->flags & IN_USE) {
-			if (rmp->priority > rmp->max_priority) {
-				rmp->priority -= 1; 
-				schedule_process(rmp);
-			}
-		}
-	}
-	/* CHANGE END */
 
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
 }
@@ -337,10 +318,6 @@ PRIVATE int give_tickets(struct schedproc * rmp, int new_tickets)
 		/* Give the process the default amount of tickets */
 		rmp->num_tickets += new_tickets;
 	} else {
-		#ifdef DEBUG
-			printf("SCHED: give_tickets(): ticket max reached\n");
-		#endif
-		
 		/* Calculates how many tickets it took to reach 100 and adds to pool */
 		difference = MAX_TICKETS - rmp->num_tickets;
 		ticket_pool += difference;
@@ -367,28 +344,12 @@ PRIVATE int take_tickets(struct schedproc * rmp, int old_tickets)
 		/* Remove tickets from the process */
 		rmp->num_tickets -= old_tickets;
 	}else {
-		#ifdef DEBUG
-			printf("SCHED: take_tickets(): ticket minimum reached\n");
-		#endif
-		
 		/* Calculates how many tickets to reach minimum, subtract from pool */
 		difference = rmp->num_tickets - 1;
         ticket_pool -= difference;		
 	    /* Sets number of tickets in process to 1 */
 		rmp->num_tickets = 1;
 		/* Return error, no process can have <1 tickets */
-		return 1;
-	}
-
-	return 0;
-}
-
-/*===========================================================================*
- *				in_user_queue				     *
- *===========================================================================*/
-PRIVATE int in_user_queue(struct schedproc * rmp)
-{
-	if (rmp->priority == QUEUE_WIN || rmp->priority == QUEUE_LOSE) {
 		return 1;
 	}
 
@@ -404,10 +365,12 @@ PRIVATE int start_lottery()
     char flag_won = 0;
 	struct schedproc *rmp;
 
-	if (seeded == 0) {
+	/* If the scheduler has not seeded, do so only one time */
+	if (flag_seed == 0) {
 		srandom(time(NULL));
-		seeded = 1;
+		flag_seed = 1;
 	}
+
 	/* Generate random winning ticket */
 	winning_num = random() % (ticket_pool - 1);
 
@@ -423,19 +386,11 @@ PRIVATE int start_lottery()
 				printf("LOTTERY: Total: %d Rand: %d Index %d won, Queues: %d -> %d Tickets: %d\n", ticket_pool, winning_num, rmp->endpoint, rmp->priority, QUEUE_WIN, rmp->num_tickets);
 				#endif
 				
-				#ifdef DYNAMIC1
-				take_tickets(rmp, 1);
-				#endif
-
 				/* This process wins, set priority QUEUE_WIN */
 				rmp->priority = QUEUE_WIN;
 				/* Winner is already found, but continue setting losers */
 				flag_won = 1;
 			} else {
-				#ifdef DYNAMIC1
-				give_tickets(rmp, 1);
-				#endif
-
 				/* This process loses, set priority to QUEUE_LOSE */
 				rmp->priority = QUEUE_LOSE;
 			}

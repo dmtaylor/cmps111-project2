@@ -5,4 +5,4 @@
 # It is expected the programs should finish in equal amounts of time.
 
 time > test1 ./cputest &
-time > test2 ./cputest &
+time > test2 ./iotest &
