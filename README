@@ -5,6 +5,11 @@ By: Forrest Kerslager
     Kevin Yeap
     Connie Yu
 
-README:
+#######################################################################
+                              Build Notes
+#######################################################################
 
-This is a placeholder for the README
+Scheduler:  To build the scheduler, copy the following source files to
+            the listed locations in MINIX 3.1.8:
+
+
