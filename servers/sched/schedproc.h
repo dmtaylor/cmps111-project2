@@ -25,6 +25,8 @@ EXTERN struct schedproc {
 	/* User space scheduling */
 	/* CHANGE START */
 	unsigned num_tickets;	/* number of tickets held by this process */
+	unsigned num_blocks;	/* the number of times process has blocked */
+	unsigned is_system;		/* true if the process is scheduled by user */
 	/* CHANGE END */
 	unsigned max_priority;	/* this process' highest allowed priority */
 	unsigned priority;		/* the process' current priority */
