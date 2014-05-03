@@ -37,8 +37,8 @@ FORWARD _PROTOTYPE( void balance_queues, (struct timer *tp)		);
 #define QUEUE_WIN 13
 #define QUEUE_LOSE 14
 
-#define DEBUG 	/* Uncomment to enable debug print statements */
-#define DYNAMIC	/* Uncomment to allocate tickets for io vs cpu bounding */
+/* #define DEBUG */	/* Uncomment to enable debug print statements */
+/* #define DYNAMIC */	/* Uncomment to allocate tickets for io vs cpu bounding */
 /* CHANGE END */
 
 /*===========================================================================*

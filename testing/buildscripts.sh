@@ -10,3 +10,9 @@ cc -c iotest.c
 cc -o iotest iotest.o
 
 dd if=/dev/urandom of=in bs=1024 count=10000
+
+chmod +x ./cpu1.sh
+chmod +x ./cpu2.sh
+chmod +x ./cpu3.sh
+chmod +x ./cpu4.sh
+chmod +x ./io1.sh
